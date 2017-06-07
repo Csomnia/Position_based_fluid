@@ -13,7 +13,8 @@ set(HEADER
     "lib/glm-0.9.8.4/include")
 set(SOURCES
     "src/main.cpp"
-    "src/application.cpp")
+    "src/application.cpp"
+    "src/particleSystem.cpp")
 
 include_directories(${HEADER})
 include_directories(${OPENGL_INCLUDE_DIR})

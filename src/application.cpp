@@ -1,4 +1,4 @@
-#include "application.h"
+#include "Application.h"
 
 bool application::init()
 {
@@ -19,8 +19,8 @@ bool application::init()
         return false;
     }
 
+    // load OpenGL
     glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
@@ -29,29 +29,9 @@ bool application::init()
 
     std::cout << "OpenGL: " << GLVersion.major << "." << GLVersion.minor << std::endl;
 
+    glEnable(GL_DEPTH_TEST);
+
     return true;
-}
-
-void application::event_loop()
-{
-    while (!glfwWindowShouldClose(window))
-    {
-        process_input();
-
-        glfwPollEvents();
-        glfwSwapBuffers(window);
-    }
-}
-
-void application::framebuffer_size_callback(GLFWwindow *window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
-inline void application::process_input()
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
 }
 
 void application::close()
