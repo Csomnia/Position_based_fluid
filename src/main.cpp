@@ -4,23 +4,24 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include <memory>
 
-#include "AppCamera.h"
-#include "InputHandler.hpp"
 #include "ParticleSystem.h"
 
+void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+void mouse_movement_callback(GLFWwindow *window, double xpos, double ypos);
+
 std::vector<glm::vec3> wall_1 {
-    glm::vec3(0.9, 0.1, 0.9),
-    glm::vec3(0.9, 0.1, -0.9),
-    glm::vec3(-0.9, 0.1, -0.9),
-    glm::vec3(-0.9, 0.1, 0.9),
-    glm::vec3(0.9, 0.1, 0.9),
-    glm::vec3(-0.9, 0.1, -0.9)
+    glm::vec3(0.0f, 0.1f, 0.0f),
+    glm::vec3(0.64f, 0.1f, 0.0f),
+    glm::vec3(0.64f, 0.1f, 0.64f),
+    glm::vec3(0.0f, 0.1f, 0.64f),
 };
 
 Camera app_camera{};
 float last_frame;
-application app("Hello pbf!", 800, 600);
+application app("Hello pbf!", 1024, 768);
+std::shared_ptr<ParticleSystem> simulation;
 
 int main()
 {
@@ -28,21 +29,22 @@ int main()
     {
         return -1;
     }
+
     auto app_window = app.get_window();
 
     // set input handler.
-    glfwSetInputMode(app_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+//    glfwSetInputMode(app_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(app_window, mouse_movement_callback);
     glfwSetScrollCallback(app_window, mouse_scroll_callback);
 
-    ParticleSystem particleSystem(0.05f);
+    // initial a particleSystem  x , y, kernal_h, cell_size
+    simulation = std::make_shared<ParticleSystem>(app_window, 0.64f, 0.64f, 0.1f, 0.1f);
 
     //
-    particleSystem.add_wall(Wall(wall_1));
-    particleSystem.add_rect_water(1000, glm::vec3(0.0f, 0.5f, 0.0f),
-                                  0.6, 0.6);
+    simulation->add_wall(Wall(wall_1));
+    simulation->add_rect_water(100, glm::vec3(0.32f, 0.5f, 0.32f),
+                                  0.3, 0.3);
 
-    particleSystem.start();
     // main loop
     while (!glfwWindowShouldClose(app_window))
     {
@@ -53,13 +55,11 @@ int main()
         float delta_time = now_time - last_frame;
         last_frame = now_time;
 
-        process_input(app_window, delta_time);
+        simulation->process_input(delta_time);
 
+        simulation->draw_scene();
 
-        particleSystem.draw_scene();
-
-        particleSystem.update(delta_time);
-
+        simulation->update(delta_time);
 
 
         glfwPollEvents();
@@ -71,4 +71,15 @@ int main()
     return 0;
 }
 
+void mouse_movement_callback(GLFWwindow *window, double xpos, double ypos)
+{
+    (void)window;
+    simulation->mouse_movement(xpos, ypos);
+}
+
+void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
+    (void)window;
+    simulation->mouse_scroll(xoffset, yoffset);
+}
 

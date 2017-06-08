@@ -14,7 +14,8 @@ set(HEADER
 set(SOURCES
     "src/main.cpp"
     "src/application.cpp"
-    "src/particleSystem.cpp")
+    "src/particleSystem.cpp"
+    "src/wall.cpp")
 
 include_directories(${HEADER})
 include_directories(${OPENGL_INCLUDE_DIR})

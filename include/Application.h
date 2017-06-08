@@ -7,7 +7,6 @@
 #include <iostream>
 #include <memory>
 
-#include "AppCamera.h"
 
 class application
 {

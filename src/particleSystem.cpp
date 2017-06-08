@@ -1,11 +1,21 @@
 #include "ParticleSystem.h"
 
-ParticleSystem::ParticleSystem(float dis)
-    : system_status(PAUSE),
-      kernal_neighbor_distance(dis),
+ParticleSystem::ParticleSystem(GLFWwindow *window, float system_x, float system_z, float kernal_dis, float cell_size)
+    : glfw_window(window),
+      system_max_x(system_x),
+      system_max_z(system_z),
+      cell_size(cell_size),
+      system_status(PAUSE),
+      kernal_neighbor_distance(kernal_dis),
       my_shader(vertex_shader_path, fragment_shader_path)
 {
+    cell_max_x = floor(system_x / cell_size);
+    cell_max_z = floor(system_z / cell_size);
 
+    xz_layer_cell_size = cell_max_x * cell_max_z;
+
+    std::cout << "cell max x: " << cell_max_x << std::endl;
+    std::cout << "cell max z: " << cell_max_z << std::endl;
 }
 
 inline void ParticleSystem::init_draw_wall()
@@ -41,7 +51,29 @@ inline void ParticleSystem::init_draw_particle()
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
+    
+}
 
+inline long ParticleSystem::cell_hash(long x, long y, long z)
+{
+    return (y * xz_layer_cell_size) * (z * cell_max_x) + x;
+}
+
+void ParticleSystem::cal_hashtable_for_particles()
+{
+    for (Particle &p : system_particles)
+    {
+        // calulate the particle now placed in and get hash value.
+        long hash_value = cell_hash(ceil(p.position.x / cell_size),
+                                    ceil(p.position.y / cell_size),
+                                    ceil(p.position.z / cell_size));
+
+        // insert into table.
+        if (system_hash_grid.count(hash_value) == 0)
+            system_hash_grid[hash_value] = std::vector<Particle>{p};
+        else
+            system_hash_grid[hash_value].push_back(p);
+    }
 }
 
 void ParticleSystem::draw_scene()
@@ -49,21 +81,21 @@ void ParticleSystem::draw_scene()
     // set shader.
     my_shader.use();
 
-    glm::mat4 projection = glm::perspective(glm::radians(app_camera.Zoom), 800.f / 600,
+    glm::mat4 projection = glm::perspective(glm::radians(my_camera.Zoom), 1024.f / 768,
                                             0.1f, 100.0f);
 
     my_shader.setMat4("model", glm::mat4());
-    my_shader.setMat4("view", app_camera.GetViewMatrix());
+    my_shader.setMat4("view", my_camera.GetViewMatrix());
     my_shader.setMat4("projection", projection);
 
-//    std::cout << "Front : " << app_camera.Front.x << " " << app_camera.Front.y << " " << app_camera.Front.z << std::endl;
+    //    std::cout << "Front : " << app_camera.Front.x << " " << app_camera.Front.y << " " << app_camera.Front.z << std::endl;
 
     // set draw wire frame.
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     // draw wall.
     glBindVertexArray(wall_VAO);
-    glDrawArrays(GL_TRIANGLES, 0, wall_vertex_posi.size());
+    glDrawArrays(GL_LINE_STRIP, 0, wall_vertex_posi.size());
     glBindVertexArray(0);
 
     // draw particles.
@@ -89,16 +121,37 @@ void ParticleSystem::update(float delta_t)
         return;
     }
 
+    // clear hash table
+    system_hash_grid.clear();
+
     int sz = system_particles.size();
     for(int i = 0; i < sz; i++)
     {
-        system_particles[i].last_position = system_particles[i].position;
+        Particle &now_process_particle = system_particles[i];
 
-        system_particles[i].volicity += delta_t * system_particles[i].acceleration;
+        // save last postion.
+        now_process_particle.last_position = now_process_particle.position;
+
+        // update volicity use acceleration.
+        now_process_particle.volicity += delta_t * now_process_particle.acceleration;
+
+        // update position use volicity.
         system_particles[i].position += delta_t * system_particles[i].volicity;
+
+        // collision dectect and response.
+        for(const Wall &w: system_walls)
+        {
+            w.collision_response(system_particles[i]);
+        }
+    }
+
+    cal_hashtable_for_particles();
+
+    // copy particle postion for display.
+    for(int i = 0; i < sz; i++)
+    {
         particles_posi[i] = system_particles[i].position;
     }
-    std::cout << "update done" << std::endl;
 }
 
 void ParticleSystem::add_rect_water(int num, glm::vec3 bottom_center, float x_width, float z_height)
@@ -121,9 +174,9 @@ void ParticleSystem::add_rect_water(int num, glm::vec3 bottom_center, float x_wi
             {
                 system_particles.push_back(Particle(glm::vec3(particle_x, particle_y, particle_z)));
                 particles_posi.push_back(glm::vec3(particle_x, particle_y, particle_z));
-                std::cout << "particle: (" << particle_x << ", "
-                          << particle_y << ", "
-                          << particle_z << ")"<< std::endl;
+                //                std::cout << "particle: (" << particle_x << ", "
+                //                          << particle_y << ", "
+                //                          << particle_z << ")"<< std::endl;
                 cnt++;
                 particle_z += kernal_neighbor_distance;
             }
@@ -131,10 +184,13 @@ void ParticleSystem::add_rect_water(int num, glm::vec3 bottom_center, float x_wi
             particle_x += kernal_neighbor_distance;
         }
         if (cnt >= num)
-           break;
+            break;
 
         particle_y += kernal_neighbor_distance;
     }
+    // copy
+    init_particles = system_particles;
+
     std::cout << "particles cnt: " << system_particles.size() << std::endl;
 
     init_draw_particle();
@@ -151,6 +207,10 @@ void ParticleSystem::add_wall(const Wall &wall)
         wall_vertex_posi.push_back(w_vertex);
     }
 
+    wall_vertex_posi.push_back(wall_vertex_posi[0]);
+    wall_vertex_posi.push_back(wall_vertex_posi[2]);
+    wall_vertex_posi.push_back(wall_vertex_posi[3]);
+    wall_vertex_posi.push_back(wall_vertex_posi[1]);
+
     init_draw_wall();
 }
-
