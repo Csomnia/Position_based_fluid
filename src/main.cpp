@@ -11,11 +11,46 @@
 void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void mouse_movement_callback(GLFWwindow *window, double xpos, double ypos);
 
-std::vector<glm::vec3> wall_1 {
-    glm::vec3(0.0f, 0.1f, 0.0f),
-    glm::vec3(0.64f, 0.1f, 0.0f),
-    glm::vec3(0.64f, 0.1f, 0.64f),
-    glm::vec3(0.0f, 0.1f, 0.64f),
+#define BOX_SIZE 0.32f
+#define TOP_SIZE 0.64f
+
+std::vector<glm::vec3> wall_1 {         // bottom
+    glm::vec3(BOX_SIZE, 0.0f, 0.0f),
+    glm::vec3(0.0f, 0.0f, 0.0f),
+    glm::vec3(0.0f, 0.0f, BOX_SIZE),
+    glm::vec3(BOX_SIZE, 0.0f, BOX_SIZE),
+};
+
+std::vector<glm::vec3> wall_2 {        // front
+    glm::vec3(0.0f, BOX_SIZE, BOX_SIZE),
+    glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE),
+    glm::vec3(BOX_SIZE, 0.0f, BOX_SIZE),
+    glm::vec3(0.0f, 0.0f, BOX_SIZE),
+};
+
+std::vector<glm::vec3> wall_3 {         // left
+    glm::vec3(0.0f, BOX_SIZE, 0.0f),
+    glm::vec3(0.0f, BOX_SIZE, BOX_SIZE),
+    glm::vec3(0.0f, 0.0f, BOX_SIZE),
+    glm::vec3(0.0f, 0.0f, 0.0f),
+};
+std::vector<glm::vec3> wall_4 {         // back
+    glm::vec3(BOX_SIZE, BOX_SIZE, 0.0f),
+    glm::vec3(0.0f, BOX_SIZE, 0.0f),
+    glm::vec3(0.0f, 0.0f, 0.0f),
+    glm::vec3(BOX_SIZE, 0.0f, 0.0f),
+};
+std::vector<glm::vec3> wall_5 {         // right
+    glm::vec3(BOX_SIZE, BOX_SIZE, BOX_SIZE),
+    glm::vec3(BOX_SIZE, BOX_SIZE, 0.0f),
+    glm::vec3(BOX_SIZE, 0.0f, 0.0f),
+    glm::vec3(BOX_SIZE, 0.0f, BOX_SIZE),
+};
+std::vector<glm::vec3> wall_6 {         // top
+    glm::vec3(TOP_SIZE, TOP_SIZE, TOP_SIZE),
+    glm::vec3(0.0f, TOP_SIZE, TOP_SIZE),
+    glm::vec3(0.0f, TOP_SIZE, 0.0f),
+    glm::vec3(TOP_SIZE, TOP_SIZE, 0.0f),
 };
 
 Camera app_camera{};
@@ -38,12 +73,24 @@ int main()
     glfwSetScrollCallback(app_window, mouse_scroll_callback);
 
     // initial a particleSystem  x , y, kernal_h, cell_size
-    simulation = std::make_shared<ParticleSystem>(app_window, 0.64f, 0.64f, 0.1f, 0.1f);
+    simulation = std::make_shared<ParticleSystem>(app_window,
+                                                  BOX_SIZE,  // system x
+                                                  BOX_SIZE,  // system z
+                                                  0.05f,   // kerynal_h
+                                                  120000.f,   // density
+                                                  0.05f);  // grid size
 
-    //
-    simulation->add_wall(Wall(wall_1));
-    simulation->add_rect_water(100, glm::vec3(0.32f, 0.5f, 0.32f),
-                                  0.3, 0.3);
+    // add walls and water.
+    simulation->add_wall(Wall(wall_1), true);
+    simulation->add_wall(Wall(wall_2), false);
+    simulation->add_wall(Wall(wall_3), true);
+    simulation->add_wall(Wall(wall_4), true);
+    simulation->add_wall(Wall(wall_5), true);
+    simulation->add_wall(Wall(wall_6), false);
+
+    simulation->add_rect_water(1000, glm::vec3(0.16f, 0.25f, 0.16f),
+                               0.19, 0.19, 10);
+
 
     // main loop
     while (!glfwWindowShouldClose(app_window))
@@ -59,7 +106,7 @@ int main()
 
         simulation->draw_scene();
 
-        simulation->update(delta_time);
+        simulation->update();
 
 
         glfwPollEvents();

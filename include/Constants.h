@@ -1,0 +1,9 @@
+#ifndef _CONSTENTS_H
+#define _CONSTENTS_H
+
+
+#define PARTICLE_RADIUS 0.02
+#define TENSILE_INSTABILITY_SCALE 0.1
+
+
+#endif
