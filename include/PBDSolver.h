@@ -55,9 +55,7 @@ public:
             glm::vec3 tmp_gradient  = calc_gradient_spiky_kernel(r_vec, h);
 
             case1_gradient_constrain += tmp_gradient;
-
         }
-
 
         case1_gradient_constrain /= density_const;
 

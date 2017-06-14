@@ -17,14 +17,18 @@
 
 #include <vector>
 #include <map>
+#include <unordered_map>
 
 enum Status{
     START,
     PAUSE
 };
 
-constexpr const char* vertex_shader_path = "../shader/pbf_vertex_shader.vert";
-constexpr const char* fragment_shader_path = "../shader/pbf_fragment_shader.frag";
+constexpr const char* particle_vertex_shader_path = "../shader/particle_vertex_shader.vert";
+constexpr const char* particle_fragment_shader_path = "../shader/particle_fragment_shader.frag";
+
+constexpr const char* wall_vertex_shader_path = "../shader/wall_vertex_shader.vert";
+constexpr const char* wall_fragment_shader_path = "../shader/wall_fragment_shader.frag";
 
 constexpr const int delta_xyz[27][3] = {
     // x  y  z
@@ -58,7 +62,9 @@ class ParticleSystem
     float cell_size;
     long cell_max_x, cell_max_z, xz_layer_cell_size;
 
-    std::map<long, std::vector<Particle *>> system_hash_grid;
+    //std::map<long, std::vector<Particle *>> system_hash_grid;
+
+    std::unordered_map<long, std::vector<Particle *>> system_hash_grid;
 
     std::vector<float> lambda;
 
@@ -75,7 +81,8 @@ class ParticleSystem
     GLuint particles_VAO, particles_VBO;
     GLuint wall_VAO, wall_VBO;
 
-    Shader my_shader;
+    Shader particle_shader;
+    Shader wall_shader;
 
     Camera my_camera;
 public:
@@ -89,6 +96,7 @@ public:
 
     void add_rect_water(int num, glm::vec3 bottom_center, float width, float height, int per_h);
 
+    void update();
 
     void trivial_update();
 
@@ -136,81 +144,9 @@ private:
 
     void find_all_neighbors();
     
+    void screenshot();
 public:
-    void update()
-    {
-        float delta_t = 0.016;
 
-        if (system_status == PAUSE)
-        {
-            return;
-        }
-
-        int sz = system_particles.size();
-
-        for(int i = 0; i < sz; i++)
-        {
-            Particle &now_process_particle = system_particles[i];
-
-            // save last postion.
-            now_process_particle.last_position = now_process_particle.position;
-
-            // update volicity use acceleration.
-             now_process_particle.volicity += delta_t * now_process_particle.acceleration;
-
-            // update position use volicity.
-            system_particles[i].position += delta_t * system_particles[i].volicity;
-
-            // collision dectect and response.
-            for(const Wall &w: system_walls)
-            {
-                w.collision_response_projection(system_particles[i]);
-            }
-        }
-
-        // clear hash table
-        system_hash_grid.clear();
-
-        // pre calculate grid for speed up neighbor finding.
-        cal_hashtable_for_particles();
-
-        find_all_neighbors();
-
-        for(int i = 0; i < 13; i++) {
-
-            for(Particle &p: system_particles)
-            {
-                PBDSolver::calc_lambda(p, kernal_neighbor_distance, density_const);
-            }
-
-            // calulate delta_p for every particles and perfrom collision detection and response.
-            for(Particle &p: system_particles)
-            {
-                PBDSolver::calc_delta_p(p, kernal_neighbor_distance, density_const);
-                for(const auto &w : system_walls)
-                {
-                    w.collision_for_delta_p_projection(p);
-                }
-            }
-
-            for(Particle &p: system_particles)
-            {
-                p.position = p.position + p.delta_p;
-            }
-        }
-
-        for(Particle &p: system_particles)
-        {
-            p.volicity = (p.position - p.last_position) / delta_t;
-        }
-
-        // copy particle postion for display.
-        for(int i = 0; i < sz; i++)
-        {
-            particles_posi[i] = system_particles[i].position;
-
-        }
-    }
     void process_input(float deltaTime)
 	{
 		if (glfwGetKey(glfw_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)

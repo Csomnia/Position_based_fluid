@@ -10,7 +10,8 @@ ParticleSystem::ParticleSystem(GLFWwindow *window, float system_x, float system_
       cell_size(cell_size),
       particles_VAO(0), particles_VBO(0),
       wall_VAO(0), wall_VBO(0),
-      my_shader(vertex_shader_path, fragment_shader_path),
+      particle_shader(particle_vertex_shader_path, particle_fragment_shader_path),
+      wall_shader(wall_vertex_shader_path, wall_fragment_shader_path),
       my_camera(glm::vec3(0.0f, 0.0f, 2.0f))
 
 {
@@ -48,15 +49,8 @@ inline void ParticleSystem::init_draw_particle()
 
     glBindVertexArray(particles_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, particles_VBO);
-
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * particles_posi.size(),
                  NULL, GL_STREAM_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid *)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
-    
 }
 
 void ParticleSystem::draw_scene()
@@ -68,40 +62,48 @@ void ParticleSystem::draw_scene()
         first_draw = false;
     }
 
-    // set shader.
-    my_shader.use();
-
     glm::mat4 projection = glm::perspective(glm::radians(my_camera.Zoom), 1024.f / 768,
-                                            0.1f, 100.0f);
+                                                0.1f, 100.0f);
+    glm::mat4 view = my_camera.GetViewMatrix();
 
-    my_shader.setMat4("model", glm::mat4());
-    my_shader.setMat4("view", my_camera.GetViewMatrix());
-    my_shader.setMat4("projection", projection);
+    // set shader.
+    wall_shader.use();
+
+    wall_shader.setMat4("model", glm::mat4());
+    wall_shader.setMat4("view", view);
+    wall_shader.setMat4("projection", projection);
 
     //    std::cout << "Front : " << app_camera.Front.x << " " << app_camera.Front.y << " " << app_camera.Front.z << std::endl;
 
     // set draw wire frame.
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     // draw wall.
     glBindVertexArray(wall_VAO);
     glDrawArrays(GL_LINES, 0, wall_vertex_posi.size());
-    glBindVertexArray(0);
+
+
+    particle_shader.use();
+
+    particle_shader.setMat4("model", glm::mat4());
+    particle_shader.setMat4("view", view);
+    particle_shader.setMat4("projection", projection);
+    particle_shader.setVec3("lightDir", glm::normalize(glm::vec3(1, 1, 1)));
 
     // draw particles.
-    glBindVertexArray(particles_VAO);
-    glPointSize(5.f);
-    glDrawArrays(GL_POINTS, 0, particles_posi.size());
 
+    glBindVertexArray(particles_VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, particles_VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * particles_posi.size(),
                  NULL, GL_STREAM_DRAW);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * particles_posi.size(),
-                 &particles_posi[0], GL_STREAM_DRAW);
-
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * particles_posi.size(),
+                    &particles_posi[0]);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid *)0);
     glEnableVertexAttribArray(0);
 
-    glBindVertexArray(0);
+    glPointSize(12.f);
+    glDrawArrays(GL_POINTS, 0, particles_posi.size());
+
 }
 
 
@@ -182,7 +184,7 @@ void ParticleSystem::update()
 
     find_all_neighbors();
 
-    for(int i = 0; i < 13; i++) {
+    for(int i = 0; i < 17; i++) {
 
         for(Particle &p: system_particles)
         {
@@ -290,6 +292,11 @@ void ParticleSystem::find_all_neighbors()
         }
 
     }
+}
+
+void ParticleSystem::screenshot()
+{
+
 }
 
 void ParticleSystem::add_rect_water(int num, glm::vec3 bottom_center, float x_width, float z_height, int per_h)
